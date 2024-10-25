@@ -191,11 +191,23 @@
             processFrame();
         }
 
-        async function updateLandmarkInfo(landmarkName) {
-            landmarkInfo.querySelector('h2').textContent = landmarkName;
-            const description = await getWikipediaDescription(landmarkName);
-            landmarkDescription.textContent = description;
-        }
+async function updateLandmarkInfo(landmarkName) {
+    landmarkInfo.querySelector('h2').textContent = landmarkName;
+    const description = await getWikipediaDescription(landmarkName);
+    landmarkDescription.innerHTML = formatDescriptionAsList(description);
+}
+
+function formatDescriptionAsList(description) {
+    const sentences = description.split('. ').filter(sentence => sentence.trim() !== '');
+    
+    let listHtml = '<ul>';
+    sentences.forEach(sentence => {
+        listHtml += `<li>${sentence.trim()}.</li>`;
+    });
+    listHtml += '</ul>';
+    
+    return listHtml;
+}
 
         async function getWikipediaDescription(title) {
             const params = new URLSearchParams({
