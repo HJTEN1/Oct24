@@ -216,6 +216,7 @@
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             video.srcObject = stream;
+            video.play();
         } catch (error) {
             console.error('Error accessing camera:', error);
             alert('Unable to access camera');
@@ -268,17 +269,19 @@
         return data.responses[0].landmarkAnnotations || [];
     }
 
-    // Capture a frame from the video
+    // Capture frame from video
     function captureFrame() {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        return canvas.toDataURL('image/jpeg').split(',')[1]; // Convert to base64
+        const videoWidth = video.videoWidth;
+        const videoHeight = video.videoHeight;
+        canvas.width = videoWidth;
+        canvas.height = videoHeight;
+        ctx.drawImage(video, 0, 0, videoWidth, videoHeight);
+        return canvas.toDataURL('image/jpeg').split(',')[1]; // Get base64 image data
     }
 
-    // Draw the AR overlay
+    // Draw AR overlay
     function drawAROverlay(landmark) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear previous drawings
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
         if (landmark) {
             ctx.fillStyle = 'rgba(0, 255, 0, 0.5)'; // Example overlay color
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -306,12 +309,15 @@
             }
 
             drawAROverlay(landmark);
+        } else {
+            drawAROverlay(null);
         }
 
         isProcessing = false;
-        requestAnimationFrame(processFrames);
+        setTimeout(processFrames, 1000); // Adjust processing interval for performance
     }
 
+    // Start processing frames when the video is loaded
     video.addEventListener('loadeddata', () => {
         processFrames();
     });
