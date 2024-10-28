@@ -46,26 +46,8 @@
         #landmark-info {
             margin-top: 1em;
             text-align: center;
-        }
-        #carousel {
-            display: flex;
-            overflow: hidden;
             width: 100%;
             max-width: 640px;
-            margin: 20px 0;
-            position: relative;
-        }
-        #carousel-inner {
-            display: flex;
-            transition: transform 0.5s ease;
-        }
-        .carousel-item {
-            min-width: 100%;
-            box-sizing: border-box;
-            padding: 10px;
-            background-color: #f1f1f1;
-            border-radius: 5px;
-            text-align: center;
         }
         #nearby-places {
             margin-top: 1em;
@@ -88,21 +70,38 @@
         .hidden {
             display: none;
         }
-        .carousel-controls {
+        #fact-carousel {
+            position: relative;
+            width: 100%;
+            max-width: 640px;
+            height: 100px;
+            overflow: hidden;
+            margin-top: 1em;
+        }
+        #fact-container {
+            display: flex;
+            transition: transform 0.3s ease;
+        }
+        .fact {
+            flex: 0 0 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+        #prev-fact, #next-fact {
             position: absolute;
             top: 50%;
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
             transform: translateY(-50%);
-        }
-        .carousel-button {
-            background-color: rgba(255, 255, 255, 0.7);
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
             border: none;
-            cursor: pointer;
             padding: 10px;
-            border-radius: 50%;
-            font-size: 24px;
+            cursor: pointer;
+        }
+        #prev-fact {
+            left: 0;
+        }
+        #next-fact {
+            right: 0;
         }
     </style>
 </head>
@@ -125,12 +124,10 @@
             <canvas id="canvas" style="display:none;"></canvas>
             <div id="landmark-info">
                 <h2>Landmark Name</h2>
-                <div id="carousel">
-                    <div id="carousel-inner"></div>
-                    <div class="carousel-controls">
-                        <button id="prev" class="carousel-button">&#10094;</button>
-                        <button id="next" class="carousel-button">&#10095;</button>
-                    </div>
+                <div id="fact-carousel">
+                    <div id="fact-container"></div>
+                    <button id="prev-fact">&#10094;</button>
+                    <button id="next-fact">&#10095;</button>
                 </div>
             </div>
         </section>
@@ -148,18 +145,16 @@
         const cameraFeed = document.getElementById('camera-feed');
         const canvas = document.getElementById('canvas');
         const landmarkInfo = document.getElementById('landmark-info');
-        const carouselInner = document.getElementById('carousel-inner');
         const placesList = document.getElementById('places-list');
-        const prevButton = document.getElementById('prev');
-        const nextButton = document.getElementById('next');
-        
-        let currentCarouselIndex = 0;
-        let carouselItems = [];
 
         // API keys and endpoints
         const GOOGLE_API_KEY = 'AIzaSyA4Xo27wNyl5vJXm32137rlFa4VAcc7JJ4';
         const VISION_API_ENDPOINT = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`;
         const WIKIPEDIA_API_ENDPOINT = 'https://en.wikipedia.org/w/api.php';
+
+        // Carousel variables
+        let facts = [];
+        let currentFactIndex = 0;
 
         // Navigation
         document.querySelectorAll('nav a').forEach(link => {
@@ -240,11 +235,12 @@
 
         async function updateLandmarkInfo(landmarkName) {
             landmarkInfo.querySelector('h2').textContent = landmarkName;
-            const descriptions = await getWikipediaDescriptions(landmarkName);
-            updateCarousel(descriptions);
+            facts = await getWikipediaDescription(landmarkName);
+            currentFactIndex = 0;
+            updateFactCarousel();
         }
 
-        async function getWikipediaDescriptions(title) {
+        async function getWikipediaDescription(title) {
             const params = new URLSearchParams({
                 action: 'query',
                 format: 'json',
@@ -259,41 +255,42 @@
             const data = await response.json();
             const pages = data.query.pages;
             const pageId = Object.keys(pages)[0];
-            return pages[pageId].extract ? pages[pageId].extract.split('. ').slice(0, 3) : ['No description available.'];
+            const fullText = pages[pageId].extract || 'No description available.';
+            
+            // Split the text into sentences
+            return fullText.match(/[^\.!\?]+[\.!\?]+/g) || [fullText];
         }
 
-        function updateCarousel(descriptions) {
-            carouselInner.innerHTML = '';
-            carouselItems = descriptions.map(description => {
-                const item = document.createElement('div');
-                item.className = 'carousel-item';
-                item.textContent = description;
-                carouselInner.appendChild(item);
-                return item;
+        function updateFactCarousel() {
+            const factContainer = document.getElementById('fact-container');
+            factContainer.innerHTML = '';
+            facts.forEach((fact, index) => {
+                const factElement = document.createElement('div');
+                factElement.classList.add('fact');
+                factElement.textContent = fact.trim();
+                factContainer.appendChild(factElement);
             });
-
-            currentCarouselIndex = 0; // Reset index to the first item
-            updateCarouselView();
+            showFact(currentFactIndex);
         }
 
-        function updateCarouselView() {
-            const translateX = -currentCarouselIndex * 100; // Move based on index
-            carouselInner.style.transform = `translateX(${translateX}%)`;
+        function showFact(index) {
+            const factContainer = document.getElementById('fact-container');
+            factContainer.style.transform = `translateX(-${index * 100}%)`;
         }
 
-        prevButton.addEventListener('click', () => {
-            if (currentCarouselIndex > 0) {
-                currentCarouselIndex--;
-                updateCarouselView();
-            }
-        });
+        function nextFact() {
+            currentFactIndex = (currentFactIndex + 1) % facts.length;
+            showFact(currentFactIndex);
+        }
 
-        nextButton.addEventListener('click', () => {
-            if (currentCarouselIndex < carouselItems.length - 1) {
-                currentCarouselIndex++;
-                updateCarouselView();
-            }
-        });
+        function prevFact() {
+            currentFactIndex = (currentFactIndex - 1 + facts.length) % facts.length;
+            showFact(currentFactIndex);
+        }
+
+        // Add event listeners for the carousel buttons
+        document.getElementById('next-fact').addEventListener('click', nextFact);
+        document.getElementById('prev-fact').addEventListener('click', prevFact);
 
         function getNearbyPlaces(location) {
             const service = new google.maps.places.PlacesService(document.createElement('div'));
@@ -321,4 +318,3 @@
     </script>
 </body>
 </html>
-
