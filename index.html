@@ -110,6 +110,7 @@
         const homeLink = document.getElementById('homeLink');
         const exploreLink = document.getElementById('exploreLink');
         const nearbyLink = document.getElementById('nearbyLink');
+        const startExploringButton = document.getElementById('start-exploring');
 
         const landingPage = document.getElementById('home');
         const explorePage = document.getElementById('explore');
@@ -131,6 +132,7 @@
         homeLink.addEventListener('click', switchToHome);
         exploreLink.addEventListener('click', switchToExplore);
         nearbyLink.addEventListener('click', switchToNearby);
+        startExploringButton.addEventListener('click', switchToExplore); // Add event listener for starting exploration
 
         function switchToHome() {
             landingPage.style.display = 'flex';
@@ -142,7 +144,7 @@
             landingPage.style.display = 'none';
             explorePage.style.display = 'flex';
             nearbyPage.style.display = 'none';
-            startCamera();
+            startCamera(); // Start the camera when switching to explore
         }
 
         function switchToNearby() {
@@ -262,3 +264,4 @@
     </script>
 </body>
 </html>
+
