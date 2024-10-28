@@ -75,6 +75,13 @@
         .hidden {
             display: none;
         }
+        .fact-card {
+            margin-top: 1em;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
     </style>
 </head>
 <body>
@@ -95,7 +102,7 @@
             <video id="camera-feed" autoplay playsinline></video>
             <canvas id="canvas" style="display:none;"></canvas>
             <div id="landmark-info">
-                <h2>Landmark Name</h2>
+                <h2 id="landmark-name">Landmark Name</h2>
                 <p id="landmark-description"></p>
             </div>
         </section>
@@ -118,7 +125,7 @@
 
         const cameraFeed = document.getElementById('camera-feed');
         const canvas = document.getElementById('canvas');
-        const landmarkInfo = document.getElementById('landmark-info');
+        const landmarkName = document.getElementById('landmark-name');
         const landmarkDescription = document.getElementById('landmark-description');
         const placesList = document.getElementById('places-list');
 
@@ -136,24 +143,25 @@
             await getUserLocation(); // Ensure user location is obtained
             switchToExplore(); // Switch to explore tab
             startCamera(); // Start the camera
+            processFrame(); // Start processing frames for landmark detection
         });
 
         function switchToHome() {
-            landingPage.style.display = 'flex';
-            explorePage.style.display = 'none';
-            nearbyPage.style.display = 'none';
+            landingPage.classList.remove('hidden');
+            explorePage.classList.add('hidden');
+            nearbyPage.classList.add('hidden');
         }
 
         function switchToExplore() {
-            landingPage.style.display = 'none';
-            explorePage.style.display = 'flex';
-            nearbyPage.style.display = 'none';
+            landingPage.classList.add('hidden');
+            explorePage.classList.remove('hidden');
+            nearbyPage.classList.add('hidden');
         }
 
         function switchToNearby() {
-            landingPage.style.display = 'none';
-            explorePage.style.display = 'none';
-            nearbyPage.style.display = 'block';
+            landingPage.classList.add('hidden');
+            explorePage.classList.add('hidden');
+            nearbyPage.classList.remove('hidden');
             showNearbyLocations();
         }
 
@@ -191,12 +199,87 @@
             });
         }
 
-        // Fetch nearby locations
+        async function captureFrame() {
+            const context = canvas.getContext('2d');
+            context.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.8).split(',')[1]; // Return the base64 encoded image
+        }
+
+        async function detectLandmark(imageData) {
+            const apiUrl = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_VISION_API_KEY}`;
+            const requestBody = {
+                requests: [{
+                    image: { content: imageData },
+                    features: [{ type: 'LANDMARK_DETECTION', maxResults: 1 }]
+                }]
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch data from Google Vision API');
+            }
+
+            const data = await response.json();
+            return data.responses[0].landmarkAnnotations || [];
+        }
+
+        async function fetchLandmarkFacts(landmarkName) {
+            const apiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&prop=extracts&exintro=false&explaintext=true&titles=${encodeURIComponent(landmarkName)}&origin=*`;
+
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error('Failed to fetch landmark information');
+            }
+
+            const data = await response.json();
+            const pages = data.query.pages;
+            const pageId = Object.keys(pages)[0];
+            const page = pages[pageId];
+
+            return page.extract ? page.extract : 'No description available.';
+        }
+
+        async function processFrame() {
+            if (isProcessing) return;
+            isProcessing = true;
+
+            try {
+                const imageData = await captureFrame();
+                const landmarks = await detectLandmark(imageData);
+
+                if (landmarks.length > 0) {
+                    const landmark = landmarks[0];
+                    if (landmark.score >= 0.5 && landmark.description !== lastDetectedLandmark) {
+                        lastDetectedLandmark = landmark.description;
+                        const facts = await fetchLandmarkFacts(landmark.description);
+                        displayLandmarkInfo(landmark.description, facts);
+                    }
+                } else {
+                    displayLandmarkInfo(null, '');
+                }
+            } catch (error) {
+                console.error('Error processing frame:', error);
+            } finally {
+                isProcessing = false;
+                setTimeout(processFrame, 1000); // Process every second
+            }
+        }
+
+        function displayLandmarkInfo(name, facts) {
+            landmarkName.textContent = name || "No landmark detected";
+            landmarkDescription.textContent = facts || '';
+        }
+
         async function fetchNearbyLocations() {
             const service = new google.maps.places.PlacesService(document.createElement('div'));
             const request = {
                 location: userLocation,
-                radius: 2500, // 2.5 km
+                radius: '2500',
                 type: ['tourist_attraction']
             };
 
@@ -208,6 +291,25 @@
                         reject('No nearby attractions found');
                     }
                 });
+            });
+        }
+
+        function showNearbyLocations() {
+            fetchNearbyLocations().then((locations) => {
+                // Clear previous list
+                placesList.innerHTML = '';
+
+                // Add locations to the list
+                locations.forEach(location => {
+                    const li = document.createElement('li');
+                    const distance = calculateDistance(userLocation.lat, userLocation.lng, location.geometry.location.lat(), location.geometry.location.lng());
+                    li.classList.add('place-card');
+                    li.innerHTML = `<h3>${location.name}</h3><p>${distance.toFixed(2)} km away</p>`;
+                    placesList.appendChild(li);
+                });
+            }).catch(error => {
+                placesList.innerHTML = `<li>No nearby locations found</li>`;
+                console.error(error);
             });
         }
 
@@ -224,37 +326,6 @@
 
         function deg2rad(deg) {
             return deg * (Math.PI / 180);
-        }
-
-        function showNearbyLocations() {
-            if (!userLocation) {
-                alert('Please enable location services and refresh the page.');
-                return;
-            }
-
-            fetchNearbyLocations().then((locations) => {
-                // Sort locations by distance
-                locations.sort((a, b) => {
-                    const distA = calculateDistance(userLocation.lat, userLocation.lng, a.geometry.location.lat(), a.geometry.location.lng());
-                    const distB = calculateDistance(userLocation.lat, userLocation.lng, b.geometry.location.lat(), b.geometry.location.lng());
-                    return distA - distB;
-                });
-
-                // Clear previous list
-                placesList.innerHTML = '';
-
-                // Add locations to the list
-                locations.forEach(location => {
-                    const li = document.createElement('li');
-                    const distance = calculateDistance(userLocation.lat, userLocation.lng, location.geometry.location.lat(), location.geometry.location.lng());
-                    li.classList.add('place-card');
-                    li.innerHTML = `<h3>${location.name}</h3><p>${distance.toFixed(2)} km away</p>`;
-                    placesList.appendChild(li);
-                });
-            }).catch(error => {
-                placesList.innerHTML = `<li>No nearby locations found</li>`;
-                console.error(error);
-            });
         }
     </script>
 </body>
