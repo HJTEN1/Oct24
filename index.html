@@ -98,7 +98,7 @@
         </section>
     </main>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_API_KEY&libraries=places"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA4Xo27wNyl5vJXm32137rlFa4VAcc7JJ4&libraries=places"></script>
     <script>
         // DOM elements
         const mainContent = document.getElementById('main-content');
@@ -191,23 +191,21 @@
             processFrame();
         }
 
-async function updateLandmarkInfo(landmarkName) {
-    landmarkInfo.querySelector('h2').textContent = landmarkName;
-    const description = await getWikipediaDescription(landmarkName);
-    landmarkDescription.innerHTML = formatDescriptionAsList(description);
-}
+        async function updateLandmarkInfo(landmarkName) {
+            landmarkInfo.querySelector('h2').textContent = landmarkName;
+            const description = await getWikipediaDescription(landmarkName);
+            landmarkDescription.innerHTML = formatDescriptionAsList(description);
+        }
 
-function formatDescriptionAsList(description) {
-    const sentences = description.split('. ').filter(sentence => sentence.trim() !== '');
-    
-    let listHtml = '<ul>';
-    sentences.forEach(sentence => {
-        listHtml += `<li>${sentence.trim()}.</li>`;
-    });
-    listHtml += '</ul>';
-    
-    return listHtml;
-}
+        function formatDescriptionAsList(description) {
+            const sentences = description.split('. ').filter(sentence => sentence.trim() !== '');
+            let listHtml = '<ul>';
+            sentences.forEach(sentence => {
+                listHtml += `<li>${sentence.trim()}.</li>`;
+            });
+            listHtml += '</ul>';
+            return listHtml;
+        }
 
         async function getWikipediaDescription(title) {
             const params = new URLSearchParams({
@@ -227,26 +225,49 @@ function formatDescriptionAsList(description) {
             return pages[pageId].extract || 'No description available.';
         }
 
+        // Nearby Places Functionality
         function getNearbyPlaces(location) {
             const service = new google.maps.places.PlacesService(document.createElement('div'));
             const request = {
                 location: location,
-                radius: '500',
+                radius: 500, // 500 meters
                 type: ['point_of_interest']
             };
 
             service.nearbySearch(request, (results, status) => {
                 if (status === google.maps.places.PlacesServiceStatus.OK) {
-                    updateNearbyPlacesList(results);
+                    const placesWithDistances = results.map(place => {
+                        const distance = calculateDistance(location, place.geometry.location);
+                        return { ...place, distance };
+                    });
+
+                    placesWithDistances.sort((a, b) => a.distance - b.distance);
+                    updateNearbyPlacesList(placesWithDistances);
                 }
             });
+        }
+
+        function calculateDistance(origin, destination) {
+            const lat1 = origin.lat();
+            const lon1 = origin.lng();
+            const lat2 = destination.lat();
+            const lon2 = destination.lng();
+            const R = 6371; // Radius of the Earth in kilometers
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // Distance in kilometers
         }
 
         function updateNearbyPlacesList(places) {
             placesList.innerHTML = '';
             places.slice(0, 5).forEach(place => {
                 const li = document.createElement('li');
-                li.textContent = place.name;
+                li.textContent = `${place.name} - ${place.distance.toFixed(2)} km`;
                 placesList.appendChild(li);
             });
         }
