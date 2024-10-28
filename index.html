@@ -52,18 +52,25 @@
             width: 100%;
             max-width: 640px;
         }
-        #nearby-places h2 {
-            text-align: center;
-        }
         #places-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1em;
             list-style-type: none;
             padding: 0;
+            justify-content: center;
         }
-        #places-list li {
+        .place-card {
             background-color: #f1f1f1;
-            margin: 0.5em 0;
-            padding: 0.5em;
+            padding: 1em;
             border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 45%;
+            margin-bottom: 1em;
+        }
+        .place-card h3 {
+            margin: 0.5em 0;
         }
         .hidden {
             display: none;
@@ -100,7 +107,6 @@
 
     <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA4Xo27wNyl5vJXm32137rlFa4VAcc7JJ4&libraries=places"></script>
     <script>
-        // DOM elements
         const mainContent = document.getElementById('main-content');
         const startExploringBtn = document.getElementById('start-exploring');
         const cameraFeed = document.getElementById('camera-feed');
@@ -109,12 +115,10 @@
         const landmarkDescription = document.getElementById('landmark-description');
         const placesList = document.getElementById('places-list');
 
-        // API keys and endpoints
         const GOOGLE_API_KEY = 'AIzaSyA4Xo27wNyl5vJXm32137rlFa4VAcc7JJ4';
         const VISION_API_ENDPOINT = `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_API_KEY}`;
         const WIKIPEDIA_API_ENDPOINT = 'https://en.wikipedia.org/w/api.php';
 
-        // Navigation
         document.querySelectorAll('nav a').forEach(link => {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -130,13 +134,11 @@
             document.getElementById(sectionId).classList.remove('hidden');
         }
 
-        // Start exploring
         startExploringBtn.addEventListener('click', () => {
             showSection('explore');
             startCamera();
         });
 
-        // Camera functionality
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
@@ -154,7 +156,6 @@
             }
         }
 
-        // Landmark detection using Google Vision API
         async function detectLandmarks() {
             const ctx = canvas.getContext('2d');
             canvas.width = cameraFeed.videoWidth;
@@ -225,7 +226,6 @@
             return pages[pageId].extract || 'No description available.';
         }
 
-        // Nearby Places Functionality
         function getNearbyPlaces(location) {
             const service = new google.maps.places.PlacesService(document.createElement('div'));
             const request = {
@@ -260,17 +260,19 @@
                 Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
                 Math.sin(dLon / 2) * Math.sin(dLon / 2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            return R * c; // Distance in kilometers
+            return R * c;
         }
 
         function updateNearbyPlacesList(places) {
             placesList.innerHTML = '';
-            places.slice(0, 5).forEach(place => {
+            places.forEach(place => {
                 const li = document.createElement('li');
-                li.textContent = `${place.name} - ${place.distance.toFixed(2)} km`;
+                li.classList.add('place-card');
+                li.innerHTML = `<h3>${place.name}</h3><p>Distance: ${place.distance.toFixed(2)} km</p>`;
                 placesList.appendChild(li);
             });
         }
     </script>
 </body>
 </html>
+
