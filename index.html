@@ -11,7 +11,7 @@
             padding: 0;
             display: flex;
             flex-direction: column;
-            height: 100vh;
+            min-height: 100vh;
         }
         header {
             background-color: #4CAF50;
@@ -34,8 +34,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             padding: 1em;
+            overflow-y: auto;
         }
         #camera-feed {
             width: 100%;
@@ -49,32 +49,11 @@
             width: 100%;
             max-width: 640px;
         }
-        #nearby-places {
-            margin-top: 1em;
-            width: 100%;
-            max-width: 640px;
-        }
-        #nearby-places h2 {
-            text-align: center;
-        }
-        #places-list {
-            list-style-type: none;
-            padding: 0;
-        }
-        #places-list li {
-            background-color: #f1f1f1;
-            margin: 0.5em 0;
-            padding: 0.5em;
-            border-radius: 5px;
-        }
-        .hidden {
-            display: none;
-        }
         #fact-carousel {
             position: relative;
             width: 100%;
             max-width: 640px;
-            height: 100px;
+            height: 150px;
             overflow: hidden;
             margin-top: 1em;
         }
@@ -102,6 +81,27 @@
         }
         #next-fact {
             right: 0;
+        }
+        #nearby-places {
+            margin-top: 1em;
+            width: 100%;
+            max-width: 640px;
+        }
+        #nearby-places h2 {
+            text-align: center;
+        }
+        #places-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #places-list li {
+            background-color: #f1f1f1;
+            margin: 0.5em 0;
+            padding: 0.5em;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
         }
     </style>
 </head>
@@ -145,6 +145,9 @@
         const cameraFeed = document.getElementById('camera-feed');
         const canvas = document.getElementById('canvas');
         const landmarkInfo = document.getElementById('landmark-info');
+        const factContainer = document.getElementById('fact-container');
+        const prevFactBtn = document.getElementById('prev-fact');
+        const nextFactBtn = document.getElementById('next-fact');
         const placesList = document.getElementById('places-list');
 
         // API keys and endpoints
@@ -235,12 +238,11 @@
 
         async function updateLandmarkInfo(landmarkName) {
             landmarkInfo.querySelector('h2').textContent = landmarkName;
-            facts = await getWikipediaDescription(landmarkName);
-            currentFactIndex = 0;
+            facts = await getWikipediaFacts(landmarkName);
             updateFactCarousel();
         }
 
-        async function getWikipediaDescription(title) {
+        async function getWikipediaFacts(title) {
             const params = new URLSearchParams({
                 action: 'query',
                 format: 'json',
@@ -257,12 +259,10 @@
             const pageId = Object.keys(pages)[0];
             const fullText = pages[pageId].extract || 'No description available.';
             
-            // Split the text into sentences
-            return fullText.match(/[^\.!\?]+[\.!\?]+/g) || [fullText];
+            return fullText.split(/(?<=\.|\?|\!)\s+/);
         }
 
         function updateFactCarousel() {
-            const factContainer = document.getElementById('fact-container');
             factContainer.innerHTML = '';
             facts.forEach((fact, index) => {
                 const factElement = document.createElement('div');
@@ -270,27 +270,25 @@
                 factElement.textContent = fact.trim();
                 factContainer.appendChild(factElement);
             });
-            showFact(currentFactIndex);
+            showFact(0);
         }
 
         function showFact(index) {
-            const factContainer = document.getElementById('fact-container');
             factContainer.style.transform = `translateX(-${index * 100}%)`;
+            currentFactIndex = index;
         }
 
-        function nextFact() {
-            currentFactIndex = (currentFactIndex + 1) % facts.length;
-            showFact(currentFactIndex);
-        }
+        prevFactBtn.addEventListener('click', () => {
+            if (currentFactIndex > 0) {
+                showFact(currentFactIndex - 1);
+            }
+        });
 
-        function prevFact() {
-            currentFactIndex = (currentFactIndex - 1 + facts.length) % facts.length;
-            showFact(currentFactIndex);
-        }
-
-        // Add event listeners for the carousel buttons
-        document.getElementById('next-fact').addEventListener('click', nextFact);
-        document.getElementById('prev-fact').addEventListener('click', prevFact);
+        nextFactBtn.addEventListener('click', () => {
+            if (currentFactIndex < facts.length - 1) {
+                showFact(currentFactIndex + 1);
+            }
+        });
 
         function getNearbyPlaces(location) {
             const service = new google.maps.places.PlacesService(document.createElement('div'));
