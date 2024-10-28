@@ -132,7 +132,11 @@
         homeLink.addEventListener('click', switchToHome);
         exploreLink.addEventListener('click', switchToExplore);
         nearbyLink.addEventListener('click', switchToNearby);
-        startExploringButton.addEventListener('click', switchToExplore); // Add event listener for starting exploration
+        startExploringButton.addEventListener('click', async () => {
+            await getUserLocation(); // Ensure user location is obtained
+            switchToExplore(); // Switch to explore tab
+            startCamera(); // Start the camera
+        });
 
         function switchToHome() {
             landingPage.style.display = 'flex';
@@ -144,7 +148,6 @@
             landingPage.style.display = 'none';
             explorePage.style.display = 'flex';
             nearbyPage.style.display = 'none';
-            startCamera(); // Start the camera when switching to explore
         }
 
         function switchToNearby() {
@@ -253,15 +256,6 @@
                 console.error(error);
             });
         }
-
-        // Start the app
-        async function startApp() {
-            await getUserLocation();
-            switchToHome(); // Initially show home
-        }
-
-        startApp();
     </script>
 </body>
 </html>
-
